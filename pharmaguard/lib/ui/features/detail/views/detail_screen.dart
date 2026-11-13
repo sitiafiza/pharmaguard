@@ -145,7 +145,7 @@ class DetailScreen extends StatelessWidget {
               // ==========================================
               if (isCritical && !isQuarantined)
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
@@ -168,7 +168,7 @@ class DetailScreen extends StatelessWidget {
                         'Masa Kedaluwarsa Resmi:',
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -176,7 +176,7 @@ class DetailScreen extends StatelessWidget {
                             DateFormat('dd MMM yyyy', 'id_ID').format(medicine.expiryDate),
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -206,7 +206,7 @@ class DetailScreen extends StatelessWidget {
                 )
               else if (!isQuarantined)
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   decoration: BoxDecoration(
                     color: const Color(0xFF10B981),
                     borderRadius: BorderRadius.circular(20),
@@ -218,7 +218,7 @@ class DetailScreen extends StatelessWidget {
                         'Masa Kedaluwarsa Resmi:',
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -226,7 +226,7 @@ class DetailScreen extends StatelessWidget {
                             DateFormat('dd MMM yyyy', 'id_ID').format(medicine.expiryDate),
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

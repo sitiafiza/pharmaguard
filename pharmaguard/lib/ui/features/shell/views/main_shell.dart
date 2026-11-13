@@ -23,18 +23,34 @@ class FloatingPhoneMockup extends StatelessWidget {
     final isDark = isDarkMode.value;
 
     return Container(
-      width: double.infinity, height: double.infinity,
-      decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: isDark ? const [Color(0xFF0F172A), Color(0xFF1E293B)] : const [Color(0xFFE0F2FE), Color(0xFFCCFBF1)])),
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? const [Color(0xFF0F172A), Color(0xFF1E293B)]
+              : const [Color(0xFFE0F2FE), Color(0xFFCCFBF1)],
+        ),
+      ),
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),
           child: Container(
-            width: double.infinity, height: double.infinity,
+            width: double.infinity,
+            height: double.infinity,
             margin: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(32),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15), blurRadius: 40, offset: const Offset(0, 15))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
+                  blurRadius: 40,
+                  offset: const Offset(0, 15),
+                ),
+              ],
             ),
             clipBehavior: Clip.antiAlias,
             child: child,
@@ -59,6 +75,8 @@ class _MainWrapperState extends State<MainWrapper> {
   
   @override
   Widget build(BuildContext context) {
+    final isDark = isDarkMode.value;
+
     // KUNCI PERBAIKAN: Memberikan ValueKey agar Beranda dipaksa Refresh saat jumlah obat bertambah!
     final List<Widget> pages = [
       HomeScreen(key: ValueKey('${mockMedicines.length}_${quarantinedMedicines.length}_$userProfileImageUrl')), 
@@ -67,6 +85,7 @@ class _MainWrapperState extends State<MainWrapper> {
     
     return FloatingPhoneMockup(
       child: Scaffold(
+        backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFC),
         body: pages[_currentIndex],
         floatingActionButton: FloatingActionButton(
           backgroundColor: const Color(0xFF0D9488),
@@ -83,7 +102,7 @@ class _MainWrapperState extends State<MainWrapper> {
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         bottomNavigationBar: BottomAppBar(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           shape: const CircularNotchedRectangle(),
           notchMargin: 10.0,
           elevation: 10,
@@ -92,9 +111,9 @@ class _MainWrapperState extends State<MainWrapper> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, Icons.home_filled, 'Beranda'), 
+                _buildNavItem(0, Icons.home_filled, 'Beranda', isDark), 
                 const SizedBox(width: 40), 
-                _buildNavItem(1, Icons.settings, 'Pengaturan')
+                _buildNavItem(1, Icons.settings, 'Pengaturan', isDark)
               ],
             ),
           ),
@@ -103,9 +122,12 @@ class _MainWrapperState extends State<MainWrapper> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
+  Widget _buildNavItem(int index, IconData icon, String label, bool isDark) {
     final isSelected = _currentIndex == index;
-    final color = isSelected ? const Color(0xFF0D9488) : const Color(0xFF64748B);
+    final color = isSelected
+        ? const Color(0xFF0D9488)
+        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B));
+
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => _currentIndex = index),
@@ -114,8 +136,15 @@ class _MainWrapperState extends State<MainWrapper> {
           children: [
             Icon(icon, color: color, size: 26), 
             const SizedBox(height: 4), 
-            Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal))
-          ]
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
         ),
       ),
     );
