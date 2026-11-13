@@ -23,20 +23,30 @@ class DetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = isDarkMode.value;
     bool isCritical = medicine.remainingDays <= 7;
     bool isQuarantined = quarantinedMedicines.any((m) => m.id == medicine.id); 
 
     return FloatingPhoneMockup(
       child: Scaffold(
-        backgroundColor: const Color(0xFFF1F5F9),
+        backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF1F5F9),
         appBar: AppBar(
+          backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF1F5F9),
+          elevation: 0,
+          scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: Icon(
+              Icons.arrow_back,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
-          title: const Text(
+          title: Text(
             'Rincian Obat',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
           ),
         ),
         body: SingleChildScrollView(
@@ -44,14 +54,17 @@ class DetailScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ==========================================
+              // KOTAK UTAMA INFO OBAT
+              // ==========================================
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
+                      color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -64,14 +77,14 @@ class DetailScreen extends StatelessWidget {
                       width: 90,
                       height: 90,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: isDark ? const Color(0xFF2D3748) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Center(
                         child: Icon(
                           getCategoryIcon(medicine.type),
                           size: 46,
-                          color: const Color(0xFF94A3B8),
+                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF94A3B8),
                         ),
                       ),
                     ),
@@ -82,16 +95,19 @@ class DetailScreen extends StatelessWidget {
                         children: [
                           Text(
                             medicine.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F172A),
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
                             ),
                           ),
                           const SizedBox(height: 10),
                           Text(
                             'Sisa Stok: ${medicine.stock} Pcs',
-                            style: const TextStyle(fontSize: 14),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            ),
                           ),
                           if (isQuarantined)
                             Container(
@@ -101,13 +117,15 @@ class DetailScreen extends StatelessWidget {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFEE2E2),
+                                color: isDark
+                                    ? const Color(0xFF7F1D1D).withValues(alpha: 0.4)
+                                    : const Color(0xFFFEE2E2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Status: Di Karantina',
                                 style: TextStyle(
-                                  color: Color(0xFFDC2626),
+                                  color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -119,7 +137,12 @@ class DetailScreen extends StatelessWidget {
                   ],
                 ),
               ),
+
               const SizedBox(height: 20),
+
+              // ==========================================
+              // KARTU STATUS KEDALUWARSA RESMI
+              // ==========================================
               if (isCritical && !isQuarantined)
                 Container(
                   padding: const EdgeInsets.all(24),
@@ -132,7 +155,7 @@ class DetailScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFDC2626).withValues(alpha: 0.3),
+                        color: const Color(0xFFDC2626).withValues(alpha: isDark ? 0.4 : 0.3),
                         blurRadius: 15,
                         offset: const Offset(0, 8),
                       ),
@@ -150,8 +173,7 @@ class DetailScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            DateFormat('dd MMM yyyy', 'id_ID')
-                                .format(medicine.expiryDate),
+                            DateFormat('dd MMM yyyy', 'id_ID').format(medicine.expiryDate),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 24,
@@ -201,8 +223,7 @@ class DetailScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            DateFormat('dd MMM yyyy', 'id_ID')
-                                .format(medicine.expiryDate),
+                            DateFormat('dd MMM yyyy', 'id_ID').format(medicine.expiryDate),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 24,
@@ -233,7 +254,12 @@ class DetailScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+
               const SizedBox(height: 40),
+
+              // ==========================================
+              // TOMBOL AKSI (JUAL / KARANTINA)
+              // ==========================================
               if (!isQuarantined) ...[
                 SizedBox(
                   width: double.infinity,
@@ -250,21 +276,30 @@ class DetailScreen extends StatelessWidget {
                       showDialog(
                         context: context,
                         builder: (BuildContext context) {
-                          TextEditingController qtyController =
-                              TextEditingController();
+                          TextEditingController qtyController = TextEditingController();
                           return AlertDialog(
+                            backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            title: const Text(
+                            title: Text(
                               'Keluarkan Obat',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
                             ),
                             content: TextField(
                               controller: qtyController,
                               keyboardType: TextInputType.number,
+                              style: TextStyle(
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
                               decoration: InputDecoration(
                                 labelText: 'Jumlah terjual',
+                                labelStyle: TextStyle(
+                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -273,20 +308,23 @@ class DetailScreen extends StatelessWidget {
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context),
-                                child: const Text('Batal'),
+                                child: Text(
+                                  'Batal',
+                                  style: TextStyle(
+                                    color: isDark ? const Color(0xFF94A3B8) : Colors.grey,
+                                  ),
+                                ),
                               ),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF0D9488),
                                 ),
                                 onPressed: () async {
-                                  int qty =
-                                      int.tryParse(qtyController.text) ?? 0;
+                                  int qty = int.tryParse(qtyController.text) ?? 0;
                                   if (qty > 0) {
                                     medicine.stock -= qty;
                                     if (medicine.stock <= 0) {
-                                      mockMedicines.removeWhere(
-                                          (m) => m.id == medicine.id);
+                                      mockMedicines.removeWhere((m) => m.id == medicine.id);
                                     }
 
                                     // CATAT RIWAYAT KASIR
