@@ -20,9 +20,25 @@ class _AuthScreenState extends State<AuthScreen> {
       maxWidth: 480,
       child: Scaffold(
         backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: _isLogin
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  onPressed: () {
+                    setState(() {
+                      _isLogin = true;
+                    });
+                  },
+                ),
+        ),
         body: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
