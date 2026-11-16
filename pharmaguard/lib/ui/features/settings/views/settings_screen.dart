@@ -69,6 +69,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              if (userProfileImageUrl != null)
+                                ListTile(
+                                  leading: const Icon(Icons.account_circle, color: Color(0xFF0D9488)),
+                                  title: Text(
+                                    'Lihat Foto',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    showDialog(
+                                      context: context,
+                                      builder: (dialogCtx) {
+                                        final imageProvider = (userProfileImageUrl!.startsWith('http')
+                                            ? NetworkImage(userProfileImageUrl!)
+                                            : MemoryImage(base64Decode(userProfileImageUrl!))) as ImageProvider;
+                                        return Dialog(
+                                          backgroundColor: Colors.transparent,
+                                          elevation: 0,
+                                          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Align(
+                                                alignment: Alignment.topRight,
+                                                child: CircleAvatar(
+                                                  backgroundColor: Colors.black54,
+                                                  radius: 18,
+                                                  child: IconButton(
+                                                    padding: EdgeInsets.zero,
+                                                    icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                                                    onPressed: () => Navigator.pop(dialogCtx),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 12),
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(20),
+                                                child: InteractiveViewer(
+                                                  clipBehavior: Clip.none,
+                                                  panEnabled: true,
+                                                  minScale: 0.8,
+                                                  maxScale: 4.0,
+                                                  child: Image(
+                                                    image: imageProvider,
+                                                    fit: BoxFit.contain,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
                               ListTile(
                                 leading: const Icon(Icons.camera_alt, color: Color(0xFF0D9488)),
                                 title: Text(
