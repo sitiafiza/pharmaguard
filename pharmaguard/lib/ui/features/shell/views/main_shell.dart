@@ -6,6 +6,7 @@ import '../../scan/views/scan_screen.dart';
 
 // ==========================================
 // WIDGET BINGKAI HP MELAYANG (MOCKUP)
+// Catatan: Efek bingkai dinonaktifkan agar aplikasi berjalan Full-Screen.
 // ==========================================
 class FloatingPhoneMockup extends StatelessWidget {
   final Widget child;
@@ -19,45 +20,7 @@ class FloatingPhoneMockup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (isInMockup(context)) return child;
-    final isDark = isDarkMode.value;
-
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? const [Color(0xFF0F172A), Color(0xFF1E293B)]
-              : const [Color(0xFFE0F2FE), Color(0xFFCCFBF1)],
-        ),
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
-            margin: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(32),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
-                  blurRadius: 40,
-                  offset: const Offset(0, 15),
-                ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: child,
-          ),
-        ),
-      ),
-    );
+    return child;
   }
 }
 
