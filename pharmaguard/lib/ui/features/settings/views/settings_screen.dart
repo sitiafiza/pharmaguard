@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../data/local_storage.dart';
 import '../../auth/views/auth_screen.dart';
 import '../../quarantine/quarantine_screen.dart';
@@ -77,10 +79,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                                 ),
                                 onTap: () async {
-                                  setState(() {
-                                    userProfileImageUrl = 'https://i.pravatar.cc/150?img=47';
-                                  });
-                                  await saveData();
+                                  final ImagePicker picker = ImagePicker();
+                                  final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50); // Quality 50 agar Base64 tidak terlalu besar
+                                  if (image != null) {
+                                    final bytes = await image.readAsBytes();
+                                    setState(() {
+                                      userProfileImageUrl = base64Encode(bytes);
+                                    });
+                                    await saveData();
+                                  }
                                   if (!context.mounted) return;
                                   Navigator.pop(context);
                                 },
@@ -115,7 +122,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         radius: 36,
                         backgroundColor: const Color(0xFFCCFBF1),
                         backgroundImage: userProfileImageUrl != null
-                            ? NetworkImage(userProfileImageUrl!)
+                            ? (userProfileImageUrl!.startsWith('http')
+                                ? NetworkImage(userProfileImageUrl!)
+                                : MemoryImage(base64Decode(userProfileImageUrl!))) as ImageProvider
                             : null,
                         child: userProfileImageUrl == null
                             ? const Text(

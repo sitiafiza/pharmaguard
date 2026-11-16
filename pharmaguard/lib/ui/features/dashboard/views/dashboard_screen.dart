@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../../domain/models/medication.dart';
 import '../../../../data/local_storage.dart';
@@ -136,7 +137,11 @@ class _HomeScreenState extends State<HomeScreen> {
         CircleAvatar(
           radius: 26,
           backgroundColor: const Color(0xFFCCFBF1),
-          backgroundImage: userProfileImageUrl != null ? NetworkImage(userProfileImageUrl!) : null,
+          backgroundImage: userProfileImageUrl != null
+              ? (userProfileImageUrl!.startsWith('http')
+                  ? NetworkImage(userProfileImageUrl!)
+                  : MemoryImage(base64Decode(userProfileImageUrl!))) as ImageProvider
+              : null,
           child: userProfileImageUrl == null
               ? const Text(
                   'P',
