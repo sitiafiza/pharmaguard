@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../../../domain/models/medication.dart';
 import '../../../../data/local_storage.dart';
@@ -27,6 +28,35 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        _checkAndPlayAlarm();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkAndPlayAlarm() async {
+    int criticalCount = mockMedicines.where((m) => m.remainingDays <= 7).length;
+    if (criticalCount > 0 && isNotificationEnabled.value == true) {
+      try {
+        await _audioPlayer.play(UrlSource('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg'));
+      } catch (e) {
+        debugPrint('Gagal memutar suara alarm: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = isDarkMode.value;

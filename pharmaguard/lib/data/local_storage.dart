@@ -12,6 +12,7 @@ List<Medicine> quarantinedMedicines = [];
 List<ActivityLog> activityLogs = [];
 String? userProfileImageUrl;
 ValueNotifier<bool> isDarkMode = ValueNotifier(false);
+ValueNotifier<bool> isNotificationEnabled = ValueNotifier(true);
 
 // ==========================================
 // 2. KUNCI PENYIMPANAN MEMORI
@@ -20,6 +21,7 @@ const String _keyMedicines = 'pharmaguard_medicines';
 const String _keyQuarantined = 'pharmaguard_quarantined';
 const String _keyActivityLogs = 'pharmaguard_activity_logs';
 const String _keyIsDark = 'isDark';
+const String _keyIsNotif = 'isNotificationEnabled';
 
 // ==========================================
 // 3. FUNGSI SIMPAN KE HARD DISK
@@ -41,6 +43,7 @@ Future<void> saveData() async {
     await prefs.setStringList(_keyQuarantined, quarantinedJson);
     await prefs.setStringList(_keyActivityLogs, logsJson);
     await prefs.setBool(_keyIsDark, isDarkMode.value);
+    await prefs.setBool(_keyIsNotif, isNotificationEnabled.value);
   } catch (e) {
     debugPrint('Gagal menyimpan data ke SharedPreferences: $e');
   }
@@ -56,9 +59,13 @@ Future<void> loadData() async {
     final quarantinedList = prefs.getStringList(_keyQuarantined);
     final logsList = prefs.getStringList(_keyActivityLogs);
     final savedDark = prefs.getBool(_keyIsDark);
+    final savedNotif = prefs.getBool(_keyIsNotif);
 
     if (savedDark != null) {
       isDarkMode.value = savedDark;
+    }
+    if (savedNotif != null) {
+      isNotificationEnabled.value = savedNotif;
     }
 
     if (medicinesList != null) {

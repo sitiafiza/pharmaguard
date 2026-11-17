@@ -136,7 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                                 onTap: () async {
                                   final ImagePicker picker = ImagePicker();
-                                  final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50); // Quality 50 agar Base64 tidak terlalu besar
+                                  final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
                                   if (image != null) {
                                     final bytes = await image.readAsBytes();
                                     setState(() {
@@ -304,8 +304,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 activeColor: const Color(0xFF0D9488),
-                value: _isNotifEnabled,
-                onChanged: (val) => setState(() => _isNotifEnabled = val),
+                value: isNotificationEnabled.value,
+                onChanged: (val) async {
+                  isNotificationEnabled.value = val;
+                  await saveData();
+                  if (!mounted) return;
+                  setState(() {});
+                },
               ),
               _buildDivider(isDark),
               SwitchListTile(
