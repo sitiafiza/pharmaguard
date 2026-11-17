@@ -83,47 +83,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     Navigator.pop(context);
                                     showDialog(
                                       context: context,
-                                      builder: (dialogCtx) {
-                                        final imageProvider = (userProfileImageUrl!.startsWith('http')
-                                            ? NetworkImage(userProfileImageUrl!)
-                                            : MemoryImage(base64Decode(userProfileImageUrl!))) as ImageProvider;
-                                        return Dialog(
-                                          backgroundColor: Colors.transparent,
-                                          elevation: 0,
-                                          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Align(
-                                                alignment: Alignment.topRight,
-                                                child: CircleAvatar(
-                                                  backgroundColor: Colors.black54,
-                                                  radius: 18,
-                                                  child: IconButton(
-                                                    padding: EdgeInsets.zero,
-                                                    icon: const Icon(Icons.close, color: Colors.white, size: 20),
-                                                    onPressed: () => Navigator.pop(dialogCtx),
-                                                  ),
-                                                ),
+                                      builder: (context) => Dialog(
+                                        backgroundColor: Colors.transparent,
+                                        elevation: 0,
+                                        insetPadding: EdgeInsets.zero,
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            // Lapisan paling bawah: Latar belakang gelap ala WhatsApp
+                                            GestureDetector(
+                                              onTap: () => Navigator.pop(context),
+                                              child: Container(
+                                                width: double.infinity,
+                                                height: double.infinity,
+                                                color: Colors.black87,
                                               ),
-                                              const SizedBox(height: 12),
-                                              ClipRRect(
-                                                borderRadius: BorderRadius.circular(20),
-                                                child: InteractiveViewer(
-                                                  clipBehavior: Clip.none,
-                                                  panEnabled: true,
-                                                  minScale: 0.8,
-                                                  maxScale: 4.0,
-                                                  child: Image(
-                                                    image: imageProvider,
-                                                    fit: BoxFit.contain,
-                                                  ),
-                                                ),
+                                            ),
+                                            // Lapisan tengah: Foto interaktif (zoomable) dengan pembatas ukuran responsif
+                                            InteractiveViewer(
+                                              child: Image(
+                                                image: userProfileImageUrl!.startsWith('http')
+                                                    ? NetworkImage(userProfileImageUrl!)
+                                                    : MemoryImage(base64Decode(userProfileImageUrl!)) as ImageProvider,
+                                                fit: BoxFit.contain,
+                                                width: MediaQuery.of(context).size.width,
+                                                height: MediaQuery.of(context).size.height,
                                               ),
-                                            ],
-                                          ),
-                                        );
-                                      },
+                                            ),
+                                            // Lapisan atas: Tombol silang (Tutup)
+                                            Positioned(
+                                              top: 40,
+                                              right: 20,
+                                              child: IconButton(
+                                                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                                                onPressed: () => Navigator.pop(context),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     );
                                   },
                                 ),
