@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/local_storage.dart';
 import 'ui/features/auth/views/auth_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null);
+
+  try {
+    await Supabase.initialize(
+      url: 'https://rnxozjojpaalqukjgrvp.supabase.co',
+      publishableKey: 'sb_publishable_zwubF11SFZ_BnecE0zMggQ_2CqUelXe',
+    );
+  } catch (e) {
+    debugPrint('Supabase initialization error: $e');
+  }
+
   await loadData();
   runApp(const PharmaGuardApp());
 }
