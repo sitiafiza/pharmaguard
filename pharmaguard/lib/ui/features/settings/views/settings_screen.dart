@@ -370,10 +370,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ? const Color(0xFF7F1D1D).withValues(alpha: 0.2)
                     : const Color(0xFFFEE2E2),
               ),
-              onPressed: () => Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const AuthScreen()),
-              ),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    title: Text(
+                      'Keluar Akun',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    content: Text(
+                      'Apakah Anda yakin ingin keluar dari sesi akun ini?',
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: Text(
+                          'Batal',
+                          style: TextStyle(
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFDC2626),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Keluar'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  try {
+                    await supabaseClient?.auth.signOut();
+                  } catch (e) {
+                    debugPrint('Gagal keluar dari Supabase: $e');
+                  }
+                  if (!context.mounted) return;
+                  Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const AuthScreen()),
+                    (route) => false,
+                  );
+                }
+              },
               icon: const Icon(Icons.logout, color: Color(0xFFDC2626)),
               label: const Text(
                 'Keluar Akun',

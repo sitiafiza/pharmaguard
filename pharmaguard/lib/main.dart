@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/local_storage.dart';
 import 'ui/features/auth/views/auth_screen.dart';
+import 'ui/features/shell/views/main_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,7 +54,12 @@ class PharmaGuardApp extends StatelessWidget {
               elevation: 0,
               scrolledUnderElevation: 0,
               centerTitle: false,
-              titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), fontFamily: 'Segoe UI'),
+              titleTextStyle: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+                fontFamily: 'Segoe UI',
+              ),
             ),
             fontFamily: 'Segoe UI',
           ),
@@ -75,13 +82,67 @@ class PharmaGuardApp extends StatelessWidget {
               elevation: 0,
               scrolledUnderElevation: 0,
               centerTitle: false,
-              titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Segoe UI'),
+              titleTextStyle: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                fontFamily: 'Segoe UI',
+              ),
             ),
             fontFamily: 'Segoe UI',
           ),
-          home: const AuthScreen(),
+          home: const AuthGate(),
         );
       },
     );
+  }
+}
+
+// ==========================================
+// PINTU GERBANG AUTENTIKASI (AUTH GATE)
+// Memeriksa status sesi pengguna secara real-time via Supabase Auth
+// ==========================================
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  StreamSubscription<AuthState>? _authSubscription;
+  bool _isAuthenticated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final client = supabaseClient;
+    if (client != null) {
+      _isAuthenticated = client.auth.currentSession != null;
+      _authSubscription = client.auth.onAuthStateChange.listen((data) async {
+        final session = data.session;
+        final hasSession = session != null;
+        if (hasSession && !_isAuthenticated) {
+          // Berhasil login: Muat ulang data terbaru dari Supabase
+          await loadData();
+        }
+        if (mounted) {
+          setState(() {
+            _isAuthenticated = hasSession;
+          });
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _isAuthenticated ? const MainWrapper() : const AuthScreen();
   }
 }
