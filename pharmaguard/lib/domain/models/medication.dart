@@ -82,7 +82,12 @@ class Medicine {
     required this.progress,
   });
 
-  int get remainingDays => expiryDate.difference(DateTime.now()).inDays;
+  int get remainingDays {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(expiryDate.year, expiryDate.month, expiryDate.day);
+    return target.difference(today).inDays;
+  }
 
   Map<String, dynamic> toJson() {
     return {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../data/local_storage.dart';
+import '../../../../data/services/alarm_service.dart';
 import '../../dashboard/views/dashboard_screen.dart';
 import '../../settings/views/settings_screen.dart';
 import '../../scan/views/scan_screen.dart';
@@ -46,42 +47,57 @@ class _MainWrapperState extends State<MainWrapper> {
       const SettingsScreen()
     ];
     
-    return FloatingPhoneMockup(
-      child: Scaffold(
-        backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFC),
-        body: pages[_currentIndex],
-        floatingActionButton: FloatingActionButton(
-          backgroundColor: const Color(0xFF0D9488),
-          onPressed: () async {
-            final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const ScanScreen()));
-            // Jika hasil dari Scan adalah true (berhasil simpan), paksa refresh UI Navigasi!
-            if (result == true) {
-              setState(() {});
-            }
-          },
-          elevation: 6,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-          child: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 28),
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        bottomNavigationBar: BottomAppBar(
-          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 10.0,
-          elevation: 10,
-          child: SizedBox(
-            height: 65,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, Icons.home_filled, 'Beranda', isDark), 
-                const SizedBox(width: 40), 
-                _buildNavItem(1, Icons.settings, 'Pengaturan', isDark)
-              ],
-            ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: isCriticalMultiSelectModeNotifier,
+      builder: (context, isMultiSelectActive, child) {
+        final showBottomNav = !isMultiSelectActive || _currentIndex != 0;
+
+        return FloatingPhoneMockup(
+          child: Scaffold(
+            backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFC),
+            body: pages[_currentIndex],
+            floatingActionButton: showBottomNav
+                ? FloatingActionButton(
+                    backgroundColor: const Color(0xFF0D9488),
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ScanScreen()),
+                      );
+                      // Jika hasil dari Scan adalah true (berhasil simpan), paksa refresh UI Navigasi dan bunyikan alarm jika kritis!
+                      if (result == true) {
+                        setState(() {});
+                        AlarmService.instance.checkAndPlayAlarm(force: true);
+                      }
+                    },
+                    elevation: 6,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    child: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 28),
+                  )
+                : null,
+            floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+            bottomNavigationBar: showBottomNav
+                ? BottomAppBar(
+                    color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                    shape: const CircularNotchedRectangle(),
+                    notchMargin: 10.0,
+                    elevation: 10,
+                    child: SizedBox(
+                      height: 65,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildNavItem(0, Icons.home_filled, 'Beranda', isDark), 
+                          const SizedBox(width: 40), 
+                          _buildNavItem(1, Icons.settings, 'Pengaturan', isDark),
+                        ],
+                      ),
+                    ),
+                  )
+                : null,
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

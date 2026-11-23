@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/models/medication.dart';
+import 'services/alarm_service.dart';
 
 // ==========================================
 // 1. VARIABEL GLOBAL (Penyimpan Data Sementara)
@@ -13,6 +14,8 @@ List<ActivityLog> activityLogs = [];
 String? userProfileImageUrl;
 ValueNotifier<bool> isDarkMode = ValueNotifier(false);
 ValueNotifier<bool> isNotificationEnabled = ValueNotifier(true);
+ValueNotifier<int> medicinesUpdateNotifier = ValueNotifier<int>(0);
+ValueNotifier<bool> isCriticalMultiSelectModeNotifier = ValueNotifier<bool>(false);
 
 // ==========================================
 // 2. KUNCI PENYIMPANAN MEMORI
@@ -88,6 +91,8 @@ Future<void> saveData() async {
       debugPrint('Gagal menyinkronkan data ke Supabase: $e');
     }
   }
+
+  medicinesUpdateNotifier.value++;
 }
 
 // ==========================================
@@ -208,9 +213,14 @@ Future<void> loadData() async {
 
         mockMedicines = activeList;
         quarantinedMedicines = qList;
+        medicinesUpdateNotifier.value++;
+        // KUNCI: Alarm otomatis dipanggil tepat setelah data obat selesai dimuat dari Supabase!
+        AlarmService.instance.checkAndPlayAlarm();
       } else if (mockMedicines.isNotEmpty || quarantinedMedicines.isNotEmpty) {
         // Supabase masih kosong, unggah data lokal ke Supabase
         await _pushMedicinesToSupabase(client);
+        medicinesUpdateNotifier.value++;
+        AlarmService.instance.checkAndPlayAlarm();
       }
 
       // c. Ambil Riwayat Aktivitas dari tabel 'activity_logs'
@@ -246,6 +256,10 @@ Future<void> loadData() async {
       debugPrint('Gagal menyelaraskan data dengan Supabase: $e');
     }
   }
+
+  // Notifikasi perubahan data obat dan panggil alarm jika ada obat kritis
+  medicinesUpdateNotifier.value++;
+  AlarmService.instance.checkAndPlayAlarm();
 }
 
 // ==========================================

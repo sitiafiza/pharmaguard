@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../../../domain/models/medication.dart';
 import '../../../../data/local_storage.dart';
+import '../../../../data/services/alarm_service.dart';
 import '../../catalog/views/catalog_screen.dart';
 import '../../history/history_screen.dart';
 import '../../quarantine/quarantine_screen.dart';
@@ -28,57 +28,359 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isSelectionMode = false;
+  final Set<String> _selectedIds = <String>{};
 
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        _checkAndPlayAlarm();
+    // Langsung periksa dan bunyikan alarm jika data obat kritis sudah tersedia
+    AlarmService.instance.checkAndPlayAlarm();
+
+    // Dengarkan pembaruan data obat (otomatis terpanggil tepat setelah Supabase selesai memuat data obat)
+    medicinesUpdateNotifier.addListener(_onMedicinesUpdated);
+  }
+
+  void _enterSelectionMode([String? initialSelectedId]) {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedIds.clear();
+      if (initialSelectedId != null) {
+        _selectedIds.add(initialSelectedId);
       }
     });
+    isCriticalMultiSelectModeNotifier.value = true;
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedIds.clear();
+    });
+    isCriticalMultiSelectModeNotifier.value = false;
+  }
+
+  void _onMedicinesUpdated() {
+    if (mounted) {
+      setState(() {
+        if (_isSelectionMode) {
+          final activeIds = mockMedicines.map((m) => m.id).toSet();
+          _selectedIds.removeWhere((id) => !activeIds.contains(id));
+          if (mockMedicines.where((m) => m.remainingDays <= 7).isEmpty) {
+            _isSelectionMode = false;
+            isCriticalMultiSelectModeNotifier.value = false;
+          }
+        }
+      });
+      AlarmService.instance.checkAndPlayAlarm();
+    }
   }
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
+    medicinesUpdateNotifier.removeListener(_onMedicinesUpdated);
+    isCriticalMultiSelectModeNotifier.value = false;
     super.dispose();
   }
 
-  Future<void> _checkAndPlayAlarm() async {
-    int criticalCount = mockMedicines.where((m) => m.remainingDays <= 7).length;
-    if (criticalCount > 0 && isNotificationEnabled.value == true) {
-      try {
-        await _audioPlayer.play(UrlSource('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg'));
-      } catch (e) {
-        debugPrint('Gagal memutar suara alarm: $e');
-      }
+  Future<void> _confirmQuarantineSelected() async {
+    final isDark = isDarkMode.value;
+    final count = _selectedIds.length;
+    if (count == 0) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Color(0xFFDC2626),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Konfirmasi Karantina',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Pindahkan $count obat terpilih ke Kotak Karantina? Obat akan ditarik dari etalase aktif.',
+            style: TextStyle(
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+              fontSize: 14,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(
+                'Batal',
+                style: TextStyle(
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Ya, Tarik', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true && mounted) {
+      await _executeQuarantineSelected();
     }
+  }
+
+  Future<void> _executeQuarantineSelected() async {
+    final selectedMeds =
+        mockMedicines.where((m) => _selectedIds.contains(m.id)).toList();
+    if (selectedMeds.isEmpty) return;
+
+    // 1. Pindahkan dari mockMedicines ke quarantinedMedicines
+    mockMedicines.removeWhere((m) => _selectedIds.contains(m.id));
+    quarantinedMedicines.addAll(selectedMeds);
+
+    // 2. Catat riwayat aktivitas karantina untuk setiap obat terpilih
+    final now = DateTime.now();
+    for (int i = 0; i < selectedMeds.length; i++) {
+      final med = selectedMeds[i];
+      activityLogs.insert(
+        0,
+        ActivityLog(
+          id: '${now.millisecondsSinceEpoch}_${med.id}_$i',
+          title: 'Obat Dikarantina',
+          description: '${med.name} ditarik dari etalase ke kotak karantina.',
+          timestamp: now,
+          type: 'quarantine',
+        ),
+      );
+    }
+
+    // 3. Simpan ke SharedPreferences & sinkronisasi online ke Supabase (medicines & activity_logs)
+    await saveData();
+
+    // 4. Perbarui alarm obat kritis
+    AlarmService.instance.checkAndPlayAlarm();
+
+    // 5. Keluar dari mode pilih dan muat ulang tampilan
+    if (mounted) {
+      _exitSelectionMode();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${selectedMeds.length} obat berhasil dipindahkan ke Kotak Karantina!',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF0D9488),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  Widget _buildSelectionControlBar(List<Medicine> criticalList, bool isDark) {
+    final allSelected = criticalList.isNotEmpty &&
+        criticalList.every((m) => _selectedIds.contains(m.id));
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D9488),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '${_selectedIds.length} dipilih',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              foregroundColor: const Color(0xFF0D9488),
+            ),
+            icon: Icon(
+              allSelected ? Icons.deselect : Icons.select_all,
+              size: 16,
+            ),
+            label: Text(
+              allSelected ? 'Batal Semua' : 'Pilih Semua',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            onPressed: () {
+              setState(() {
+                if (allSelected) {
+                  _selectedIds.clear();
+                } else {
+                  _selectedIds.addAll(criticalList.map((m) => m.id));
+                }
+              });
+            },
+          ),
+          const SizedBox(width: 6),
+          TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              foregroundColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
+            onPressed: _exitSelectionMode,
+            child: const Text(
+              'Batal',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuarantineBottomBar(bool isDark) {
+    final count = _selectedIds.length;
+    final hasSelection = count > 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+        border: Border(
+          top: BorderSide(
+            color: isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0),
+            width: 1,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          height: 52,
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: hasSelection
+                  ? const Color(0xFFDC2626)
+                  : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              foregroundColor: Colors.white,
+              elevation: hasSelection ? 4 : 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            icon: const Icon(Icons.move_to_inbox, size: 22),
+            label: Text(
+              'Tarik ke Karantina ($count)',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.3,
+              ),
+            ),
+            onPressed: hasSelection ? _confirmQuarantineSelected : null,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = isDarkMode.value;
-    int criticalCount = mockMedicines.where((m) => m.remainingDays <= 7).length; 
+    final criticalList =
+        mockMedicines.where((m) => m.remainingDays <= 7).toList();
+    int criticalCount = criticalList.length; 
     int safeCount = mockMedicines.where((m) => m.remainingDays > 7).length;
     
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF1F5F9),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            _buildHeader(isDark),
-            const SizedBox(height: 24),
-            if (criticalCount > 0) _buildHeroCard(criticalCount),
-            if (criticalCount > 0) const SizedBox(height: 24),
-            _buildStatsRow(context, safeCount, isDark), 
-            const SizedBox(height: 28),
-            _buildSectionTitle(criticalCount, isDark),
-            const SizedBox(height: 16),
-            ...mockMedicines.where((m) => m.remainingDays <= 7).map((med) => _buildMedicineCard(context, med, isDark)),
-            if (mockMedicines.isEmpty)
+    return PopScope(
+      canPop: !_isSelectionMode,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _isSelectionMode) {
+          _exitSelectionMode();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF1F5F9),
+        body: Listener(
+          onPointerDown: (_) => AlarmService.instance.onUserInteraction(),
+          child: SafeArea(
+            child: ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: [
+              _buildHeader(isDark),
+              const SizedBox(height: 24),
+              if (criticalCount > 0) _buildHeroCard(criticalCount),
+              if (criticalCount > 0) const SizedBox(height: 24),
+              _buildStatsRow(context, safeCount, isDark), 
+              const SizedBox(height: 28),
+              _buildSectionTitle(criticalCount, isDark),
+              const SizedBox(height: 16),
+              if (_isSelectionMode && criticalCount > 0)
+                _buildSelectionControlBar(criticalList, isDark),
+              ...criticalList.map((med) => _buildMedicineCard(context, med, isDark)),
+              if (mockMedicines.isEmpty)
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 20),
                 padding: const EdgeInsets.all(32),
@@ -158,8 +460,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+    bottomNavigationBar: _isSelectionMode ? _buildQuarantineBottomBar(isDark) : null,
+  ),
+);
+}
 
   Widget _buildHeader(bool isDark) {
     return Row(
@@ -348,7 +653,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(builder: (context) => const CatalogScreen()),
               );
-              if (result == true) setState(() {});
+              if (result == true) {
+                setState(() {});
+                AlarmService.instance.checkAndPlayAlarm(force: true);
+              }
             },
             child: _buildStatItem(
               'Total Obat',
@@ -442,34 +750,65 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Text(
-              'Obat Kritis (Sisa <= 7 Hari)',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFEE2E2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+        Flexible(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  'Obat Kritis (Sisa <= 7 Hari)',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
+        if (count > 0 && !_isSelectionMode) ...[
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: () => _enterSelectionMode(),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.checklist, size: 16, color: Color(0xFF0D9488)),
+                  SizedBox(width: 4),
+                  Text(
+                    'Pilih',
+                    style: TextStyle(
+                      color: Color(0xFF0D9488),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -484,22 +823,54 @@ class _HomeScreenState extends State<HomeScreen> {
         ? (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626))
         : (isDark ? const Color(0xFFFDE68A) : const Color(0xFFD97706));
 
+    final isSelected = _selectedIds.contains(med.id);
+
     return GestureDetector(
+      onLongPress: () {
+        if (!_isSelectionMode) {
+          _enterSelectionMode(med.id);
+        }
+      },
       onTap: () async {
+        if (_isSelectionMode) {
+          setState(() {
+            if (isSelected) {
+              _selectedIds.remove(med.id);
+            } else {
+              _selectedIds.add(med.id);
+            }
+          });
+          return;
+        }
+
         final result = await Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => DetailScreen(medicine: med)),
         );
-        if (result == true) setState(() {});
+        if (result == true) {
+          setState(() {});
+          AlarmService.instance.checkAndPlayAlarm(force: true);
+        }
       },
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          color: isSelected
+              ? (isDark ? const Color(0xFF132E2B) : const Color(0xFFF0FDFA))
+              : (isDark ? const Color(0xFF1E1E1E) : Colors.white),
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF0D9488)
+                : (isDark ? const Color(0xFF2D3748) : Colors.transparent),
+            width: isSelected ? 2 : 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+              color: isSelected
+                  ? const Color(0xFF0D9488).withValues(alpha: 0.2)
+                  : Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
@@ -511,7 +882,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 6,
               height: 90,
               decoration: BoxDecoration(
-                color: statusColor,
+                color: isSelected ? const Color(0xFF0D9488) : statusColor,
                 borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
               ),
             ),
@@ -597,11 +968,35 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        Icon(
-                          Icons.chevron_right,
-                          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                        ),
+                        const SizedBox(height: 8),
+                        if (_isSelectionMode)
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: Checkbox(
+                              value: isSelected,
+                              activeColor: const Color(0xFF0D9488),
+                              checkColor: Colors.white,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              onChanged: (val) {
+                                setState(() {
+                                  if (val == true) {
+                                    _selectedIds.add(med.id);
+                                  } else {
+                                    _selectedIds.remove(med.id);
+                                  }
+                                });
+                              },
+                            ),
+                          )
+                        else
+                          Icon(
+                            Icons.chevron_right,
+                            color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                          ),
                       ],
                     ),
                   ],
