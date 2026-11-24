@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../data/local_storage.dart';
+import '../../../../data/services/alarm_service.dart';
 import '../../shell/views/main_shell.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -51,6 +52,9 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _handleAuth() async {
+    // 1. Buka AudioContext SEBELUM proses async ke Supabase dijalankan
+    AlarmService.instance.unlockAudio();
+
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 

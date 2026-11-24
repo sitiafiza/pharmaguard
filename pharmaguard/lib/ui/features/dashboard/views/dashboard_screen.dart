@@ -597,20 +597,70 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Prioritas Tinggi',
-                  style: TextStyle(
-                    color: Color(0xFFDC2626),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Tombol Ikon Speaker Kecil untuk Tes / Matikan Suara Alarm Manual
+                  ValueListenableBuilder<bool>(
+                    valueListenable: AlarmService.instance.isAlarmPlayingNotifier,
+                    builder: (context, isPlaying, _) {
+                      return Material(
+                        color: isPlaying
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(20),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () {
+                            if (isPlaying) {
+                              AlarmService.instance.stop();
+                            } else {
+                              AlarmService.instance.playAlarm();
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isPlaying ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                                  color: isPlaying ? const Color(0xFFDC2626) : Colors.white,
+                                  size: 15,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isPlaying ? 'Matikan' : 'Tes Suara',
+                                  style: TextStyle(
+                                    color: isPlaying ? const Color(0xFFDC2626) : Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Prioritas Tinggi',
+                      style: TextStyle(
+                        color: Color(0xFFDC2626),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

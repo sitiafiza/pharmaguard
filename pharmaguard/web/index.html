@@ -31,6 +31,123 @@
 
   <title>pharmaguard</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    (function() {
+      var audioCtx = null;
+      var activeOscillators = [];
+      var alarmTimeout = null;
+      var isAlarmPlaying = false;
+
+      function getAudioContext() {
+        if (!audioCtx) {
+          var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+          }
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        return audioCtx;
+      }
+
+      window.unlockAudioContext = function() {
+        try {
+          var ctx = getAudioContext();
+          if (ctx && ctx.state === 'suspended') {
+            ctx.resume();
+          }
+        } catch (e) {
+          console.warn('[PharmaGuard WebAudio] Unlock failed:', e);
+        }
+      };
+
+      // Listen on any early user gesture to ensure AudioContext is primed
+      ['click', 'touchstart', 'keydown', 'pointerdown'].forEach(function(evt) {
+        window.addEventListener(evt, function() {
+          window.unlockAudioContext();
+        }, { capture: true, passive: true });
+      });
+
+      window.isAlarmSirenPlaying = function() {
+        return isAlarmPlaying;
+      };
+
+      window.playAlarmSiren = function() {
+        try {
+          window.unlockAudioContext();
+          var ctx = getAudioContext();
+          if (!ctx) return;
+
+          window.stopAlarmSiren();
+          isAlarmPlaying = true;
+
+          // Sound design: Urgent two-tone medical alert siren (920 Hz & 650 Hz)
+          // 5 bursts over ~2.6 seconds
+          var now = ctx.currentTime;
+          var pulses = [
+            { f: 920, offset: 0.00, dur: 0.16 },
+            { f: 650, offset: 0.18, dur: 0.18 },
+            { f: 920, offset: 0.55, dur: 0.16 },
+            { f: 650, offset: 0.73, dur: 0.18 },
+            { f: 920, offset: 1.10, dur: 0.16 },
+            { f: 650, offset: 1.28, dur: 0.18 },
+            { f: 920, offset: 1.65, dur: 0.16 },
+            { f: 650, offset: 1.83, dur: 0.22 },
+            { f: 920, offset: 2.20, dur: 0.16 },
+            { f: 650, offset: 2.38, dur: 0.28 }
+          ];
+
+          pulses.forEach(function(p) {
+            var startTime = now + p.offset;
+            var stopTime = startTime + p.dur;
+
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(p.f, startTime);
+
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.25, startTime + 0.015);
+            gain.gain.setValueAtTime(0.25, stopTime - 0.02);
+            gain.gain.linearRampToValueAtTime(0, stopTime);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(startTime);
+            osc.stop(stopTime);
+
+            activeOscillators.push(osc);
+          });
+
+          alarmTimeout = setTimeout(function() {
+            isAlarmPlaying = false;
+            activeOscillators = [];
+          }, 2800);
+
+        } catch (e) {
+          console.warn('[PharmaGuard WebAudio] Play siren failed:', e);
+          isAlarmPlaying = false;
+        }
+      };
+
+      window.stopAlarmSiren = function() {
+        try {
+          if (alarmTimeout) {
+            clearTimeout(alarmTimeout);
+            alarmTimeout = null;
+          }
+          activeOscillators.forEach(function(osc) {
+            try { osc.stop(); } catch (_) {}
+          });
+          activeOscillators = [];
+          isAlarmPlaying = false;
+        } catch (e) {}
+      };
+    })();
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

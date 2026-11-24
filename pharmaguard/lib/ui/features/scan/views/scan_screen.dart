@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../domain/models/medication.dart';
 import '../../../../data/local_storage.dart';
+import '../../../../data/services/alarm_service.dart';
 import '../../shell/views/main_shell.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -38,6 +39,9 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   void _saveMedicine() async {
+    // 1. Buka AudioContext SEBELUM proses async ke Supabase dijalankan
+    AlarmService.instance.unlockAudio();
+
     final barcodeText = _barcodeController.text.trim();
     final nameText = _nameController.text.trim();
     final doseText = _doseController.text.trim();

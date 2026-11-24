@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../domain/models/medication.dart';
 import '../../../../data/local_storage.dart';
+import '../../../../data/services/alarm_service.dart';
 import '../../shell/views/main_shell.dart';
 
 // Helper Ikon Kategori Obat
@@ -320,6 +321,7 @@ class DetailScreen extends StatelessWidget {
                                   backgroundColor: const Color(0xFF0D9488),
                                 ),
                                 onPressed: () async {
+                                  AlarmService.instance.unlockAudio();
                                   int qty = int.tryParse(qtyController.text) ?? 0;
                                   if (qty > 0) {
                                     medicine.stock -= qty;
@@ -391,6 +393,7 @@ class DetailScreen extends StatelessWidget {
                       ),
                     ),
                     onPressed: () async {
+                      AlarmService.instance.unlockAudio();
                       mockMedicines.removeWhere((m) => m.id == medicine.id);
                       quarantinedMedicines.add(medicine);
 

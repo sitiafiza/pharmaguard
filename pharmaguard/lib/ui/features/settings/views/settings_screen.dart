@@ -14,8 +14,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _isNotifEnabled = true;
-
   @override
   Widget build(BuildContext context) {
     final isDark = isDarkMode.value;

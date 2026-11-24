@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import '../local_storage.dart';
+import 'web_audio/web_audio.dart';
 
 class AlarmService {
   static final AlarmService instance = AlarmService._internal();
@@ -10,6 +12,9 @@ class AlarmService {
   bool _isPlaying = false;
   bool _pendingPlay = false;
   DateTime? _lastPlayedAt;
+  Timer? _alarmTimer;
+
+  final ValueNotifier<bool> isAlarmPlayingNotifier = ValueNotifier<bool>(false);
 
   bool get isPlaying => _isPlaying;
 
@@ -19,6 +24,18 @@ class AlarmService {
   AudioPlayer get player {
     _player ??= AudioPlayer();
     return _player!;
+  }
+
+  /// Membuka izin audio (Web Audio API context) sebelum proses async
+  void unlockAudio() {
+    _pendingPlay = false;
+    if (kIsWeb) {
+      try {
+        unlockWebAudio();
+      } catch (e) {
+        debugPrint('[AlarmService] unlockWebAudio error: $e');
+      }
+    }
   }
 
   /// Memeriksa apakah ada obat aktif berstatus kritis/kedaluwarsa (sisa hari <= 7 hari, termasuk <= 0 hari)
@@ -60,25 +77,40 @@ class AlarmService {
       _lastPlayedAt = DateTime.now();
       _isPlaying = true;
       _pendingPlay = false;
+      isAlarmPlayingNotifier.value = true;
 
-      final p = player;
-      await p.stop();
-      await p.setVolume(1.0);
-      await p.play(UrlSource(alarmSoundUrl));
-      debugPrint('[AlarmService] Audio alarm berhasil diputar.');
+      // 1. Prioritas Utama di Web: Gunakan Web Audio API synthesizer bawaan browser
+      if (kIsWeb) {
+        playWebAlarm();
+        debugPrint('[AlarmService] Web Audio API alarm berhasil diputar.');
+      } else {
+        // 2. Di platform native (Android/iOS/Desktop): Gunakan audioplayers
+        final p = player;
+        await p.stop();
+        await p.setVolume(1.0);
+        await p.play(UrlSource(alarmSoundUrl));
+        debugPrint('[AlarmService] AudioPlayer alarm berhasil diputar.');
+      }
+
+      // Reset status alarm setelah 2.8 detik (durasi rangkaian sirine Web Audio)
+      _alarmTimer?.cancel();
+      _alarmTimer = Timer(const Duration(milliseconds: 2800), () {
+        _isPlaying = false;
+        isAlarmPlayingNotifier.value = false;
+      });
     } catch (e) {
       debugPrint('[AlarmService] Gagal memutar audio: $e');
-      // Jika browser memblokir karena kebijakan autoplay di Flutter Web, simpan flag pending
       if (kIsWeb) {
         _pendingPlay = true;
       }
-    } finally {
       _isPlaying = false;
+      isAlarmPlayingNotifier.value = false;
     }
   }
 
   /// Dipanggil saat ada sentuhan/klik pengguna di layar untuk membuka blokir autoplay browser
   void onUserInteraction() {
+    unlockAudio();
     if (_pendingPlay && hasCriticalMedicine() && isNotificationEnabled.value == true) {
       _pendingPlay = false;
       playAlarm();
@@ -87,13 +119,20 @@ class AlarmService {
 
   Future<void> stop() async {
     try {
+      _alarmTimer?.cancel();
+      _alarmTimer = null;
+      if (kIsWeb) {
+        stopWebAlarm();
+      }
       await _player?.stop();
     } catch (_) {}
     _isPlaying = false;
     _pendingPlay = false;
+    isAlarmPlayingNotifier.value = false;
   }
 
   void dispose() {
+    _alarmTimer?.cancel();
     try {
       _player?.dispose();
     } catch (_) {}
